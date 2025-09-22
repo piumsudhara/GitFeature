@@ -1,0 +1,56 @@
+name: Auto-update Feature Branches
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update-feature-branches:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        branch: ${{ fromJson(needs.get-branches.outputs.branches) }}
+        fail-fast: false
+    needs: get-branches
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "Github Action"
+          git config --global user.email "action@github.com"
+
+      - name: Update feature branch
+        run: |
+          echo "Updating ${{ matrix.branch }}..."
+          git checkout ${{ matrix.branch }}
+          if git rebase origin/main; then
+            git push --force-with-lease
+          else
+            echo "Rebase failed for ${{ matrix.branch }}, attempting merge..."
+            git rebase --abort
+            git merge origin/main
+            git push --force-with-lease
+          fi
+
+  get-branches:
+    runs-on: ubuntu-latest
+    outputs:
+      branches: ${{ steps.set-branches.outputs.branches }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch all branches
+        run: |
+          git fetch origin --prune # Ensure new branches are detected and stale ones removed
+      - name: Get feature branches
+        id: set-branches
+        run: |
+          branches=$(git branch -r | grep "origin/feature/" | sed "s/origin\//" | grep -v "main" | jq -R -s -c 'split("\n")[:-1]')
+          echo "branches=$branches" >> $GITHUB_OUTPUT
