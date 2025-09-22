@@ -6,18 +6,38 @@ on:
       - main
 
 jobs:
-  update-feature-branches:
+  get-branches:
     runs-on: ubuntu-latest
-    needs: get-branches
-    strategy:
-      matrix:
-        branch: ${{ fromJson(needs.get-branches.outputs.branches) }}
-        fail-fast: false
+    outputs:
+      branches: ${{ steps.set-branches.outputs.branches }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetch full history for rebasing/merging
+          fetch-depth: 0
+      - name: Fetch all branches
+        run: git fetch origin --prune
+      - name: Get feature branches
+        id: set-branches
+        run: |
+          branches=$(git branch -r | grep "origin/feature/" \
+            | sed "s|origin/||" \
+            | grep -v "main" \
+            | jq -R -s -c 'split("\n")[:-1]')
+          echo "branches=$branches" >> $GITHUB_OUTPUT
+
+  update-feature-branches:
+    runs-on: ubuntu-latest
+    needs: get-branches
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJson(needs.get-branches.outputs.branches) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Set up Git
         run: |
           git config --global user.name "Github Action"
@@ -31,24 +51,10 @@ jobs:
           else
             echo "Rebase failed for ${{ matrix.branch }}, attempting merge..."
             git rebase --abort
-            git merge origin/main
-            git push --force-with-lease
+            if git merge origin/main; then
+              git push
+            else
+              echo "Merge failed for ${{ matrix.branch }}. Manual intervention required."
+              exit 1
+            fi
           fi
-
-  get-branches:
-    runs-on: ubuntu-latest
-    outputs:
-      branches: ${{ steps.set-branches.outputs.branches }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Fetch all branches
-        run: |
-          git fetch origin --prune # Ensure new branches are detected and stale ones removed
-      - name: Get feature branches
-        id: set-branches
-        run: |
-          branches=$(git branch -r | grep "origin/feature/" | sed "s/origin\//" | grep -v "main" | jq -R -s -c 'split("\n")[:-1]')
-          echo "branches=$branches" >> $GITHUB_OUTPUT
