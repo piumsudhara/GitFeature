@@ -18,10 +18,13 @@ jobs:
       - name: Fetch all branches
         run: |
           git fetch origin --prune
+          echo "All remote branches: $(git branch -r)" # Debug all remote branches
       - name: Get feature branches
         id: set-branches
         run: |
-          branches=$(git branch -r | grep -E 'origin/(feature|feature-)[0-9a-zA-Z-]+' | sed 's/origin\///' | grep -v 'main' || echo "[]")
+          # Match branches starting with 'feature' or 'feature-' followed by any characters
+          branches=$(git branch -r | grep -E 'origin/feature[0-9a-zA-Z-]*' | sed 's/origin\///' | grep -v 'main' || echo "[]")
+          echo "Matched branches: $branches" # Debug matched branches
           echo "branches=$branches" >> $GITHUB_OUTPUT
 
   update-feature-branches:
