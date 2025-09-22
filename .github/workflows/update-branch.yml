@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         branch: ${{ fromJson(needs.get-branches.outputs.branches) }}
-        fail-fast: false
+        fail-fast: false # Continue updating other branches if one fails
     needs: get-branches
     steps:
       - name: Checkout repository
