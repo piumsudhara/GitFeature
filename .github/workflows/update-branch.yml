@@ -17,11 +17,12 @@ jobs:
           fetch-depth: 0
       - name: Fetch all branches
         run: |
-          git fetch origin --prune # Ensure new branches are detected and stale ones removed
+          git fetch origin --prune
       - name: Get feature branches
         id: set-branches
         run: |
-          branches=$(git branch -r | grep 'origin/feature/' | sed 's/origin\///' | grep -v 'main' | jq -R -s -c 'split("\n")[:-1]')
+          branches=$(git branch -r | grep 'origin/feature/' | sed 's/origin\///' | grep -v 'main' || echo "[]")
+          echo "Detected branches: $branches" # Debug output
           echo "branches=$branches" >> $GITHUB_OUTPUT
 
   update-feature-branches:
@@ -29,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        branch: ${{ fromJson(needs.get-branches.outputs.branches) }}
+        branch: ${{ fromJson(needs.get-branches.outputs.branches) || '[]' }}
       fail-fast: false
     steps:
       - name: Checkout repository
@@ -41,6 +42,7 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
       - name: Update feature branch
+        if: ${{ matrix.branch != '' }} # Skip if no branch
         run: |
           echo "Updating ${{ matrix.branch }}..."
           git checkout ${{ matrix.branch }}
