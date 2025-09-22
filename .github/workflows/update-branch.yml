@@ -21,8 +21,7 @@ jobs:
       - name: Get feature branches
         id: set-branches
         run: |
-          branches=$(git branch -r | grep 'origin/feature/' | sed 's/origin\///' | grep -v 'main' || echo "[]")
-          echo "Detected branches: $branches" # Debug output
+          branches=$(git branch -r | grep -E 'origin/(feature|feature-)[0-9a-zA-Z-]+' | sed 's/origin\///' | grep -v 'main' || echo "[]")
           echo "branches=$branches" >> $GITHUB_OUTPUT
 
   update-feature-branches:
@@ -42,7 +41,7 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
       - name: Update feature branch
-        if: ${{ matrix.branch != '' }} # Skip if no branch
+        if: ${{ matrix.branch != '' }}
         run: |
           echo "Updating ${{ matrix.branch }}..."
           git checkout ${{ matrix.branch }}
