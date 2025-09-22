@@ -22,10 +22,12 @@ jobs:
       - name: Get feature branches
         id: set-branches
         run: |
-          # Match branches starting with 'feature' or 'feature-' followed by any characters
-          branches=$(git branch -r | grep -E 'origin/feature[0-9a-zA-Z-]*' | sed 's/origin\///' | grep -v 'main' || echo "[]")
-          echo "Matched branches: $branches" # Debug matched branches
-          echo "branches=$branches" >> $GITHUB_OUTPUT
+          # Match branches starting with 'feature' followed by any characters
+          branches=$(git branch -r | grep -E 'origin/feature[0-9a-zA-Z-]*' | sed 's/origin\///' | grep -v 'main' || echo "")
+          echo "Matched branches (raw): $branches" # Debug raw output
+          branches_array=$(echo "$branches" | jq -R -s -c 'split("\n")[:-1]' || echo "[]")
+          echo "Matched branches (JSON): $branches_array" # Debug JSON output
+          echo "branches=$branches_array" >> $GITHUB_OUTPUT
 
   update-feature-branches:
     needs: get-branches
